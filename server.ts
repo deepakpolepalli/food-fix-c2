@@ -13,16 +13,6 @@ const PORT = 3000;
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// Initialize the Google GenAI SDK (with fallback for GOOGLE_API_KEY in other hoisting services)
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
-  httpOptions: {
-    headers: {
-      "User-Agent": "aistudio-build",
-    },
-  },
-});
-
 const MODEL = "gemini-2.5-flash";
 
 const POLICY_DOCUMENT = `
@@ -115,6 +105,26 @@ function parseDataUri(dataUri: string) {
   };
 }
 
+// Helper function to lazily initialize the Google GenAI instance.
+// This prevents the application from crashing on startup or during build phases on
+// hosting platforms like Vercel if the API key is not populated or declared.
+function getAiClient() {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "Missing Gemini API Credentials. Please set GEMINI_API_KEY or GOOGLE_API_KEY in your environment secrets."
+    );
+  }
+  return new GoogleGenAI({
+    apiKey: apiKey,
+    httpOptions: {
+      headers: {
+        "User-Agent": "aistudio-build",
+      },
+    },
+  });
+}
+
 // Chat API Endpoint
 app.post("/api/chat", async (req, res) => {
   try {
@@ -123,6 +133,9 @@ app.post("/api/chat", async (req, res) => {
     if (!query) {
       return res.status(400).json({ error: "Missing query" });
     }
+
+    // Lazily initialize client on request
+    const ai = getAiClient();
 
     // Format historical conversation
     const historyText = Array.isArray(history)
