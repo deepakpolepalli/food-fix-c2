@@ -13,9 +13,9 @@ const PORT = 3000;
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// Initialize the Google GenAI SDK (with AI Studio required User-Agent headers)
+// Initialize the Google GenAI SDK (with fallback for GOOGLE_API_KEY in other hoisting services)
 const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
+  apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
   httpOptions: {
     headers: {
       "User-Agent": "aistudio-build",
